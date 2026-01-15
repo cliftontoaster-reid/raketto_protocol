@@ -1,0 +1,236 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.channel.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "org/archprotogens/raketto/channel/v1/channel.proto";
+
+option go_package = "raketto/channel/v1";
+
+// Channel statistics for monitoring and analytics
+message ChannelStats {
+  string channel_id = 1;
+  
+  // Activity metrics
+  int32 messages_per_hour = 2;
+  int32 active_users_24h = 3;
+  int32 peak_concurrent = 4;
+  
+  // Member metrics
+  int32 total_joins = 5;
+  int32 total_parts = 6;
+  float average_session_duration = 7;
+  
+  // Moderation metrics
+  int32 kicks_today = 8;
+  int32 bans_today = 9;
+  int32 timeouts_today = 10;
+  
+  // Content metrics
+  int32 ads_posted_today = 11;
+  int32 characters_per_message = 12;
+  
+  google.protobuf.Timestamp last_updated = 13;
+}
+
+// Advanced settings - remove the repeated in oneof
+message ChannelSearchRequest {
+  // Basic filters
+  optional string name_query = 1;
+  repeated ChannelType type_filters = 2;
+  repeated ChannelMode mode_filters = 3;
+  optional string owner_id = 4;
+  
+  // Advanced filters
+  optional int32 min_members = 5;
+  optional int32 max_members = 6;
+  optional bool password_protected_only = 7;
+  optional bool invite_only_only = 8;
+  
+  // Activity filters
+  optional bool active_only = 9;
+  optional google.protobuf.Timestamp created_after = 10;
+  optional google.protobuf.Timestamp created_before = 11;
+  
+  // Pagination
+  int32 page_size = 12;
+  string page_token = 13;
+  
+  // Sorting
+  enum SortBy {
+    SORT_BY_UNSPECIFIED = 0;
+    SORT_BY_NAME = 1;
+    SORT_BY_MEMBER_COUNT = 2;
+    SORT_BY_CREATED_AT = 3;
+    SORT_BY_ACTIVITY = 4;
+  }
+  optional SortBy sort_by = 14;
+  enum SortOrder {
+    SORT_ORDER_UNSPECIFIED = 0;
+    SORT_ORDER_ASCENDING = 1;
+    SORT_ORDER_DESCENDING = 2;
+  }
+  optional SortOrder sort_order = 15;
+}
+
+message ChannelSearchResponse {
+  repeated Channel channels = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+  
+  // Search metadata
+  int32 search_time_ms = 4;
+  bool has_more_results = 5;
+}
+
+
+// Channel configuration templates
+message ChannelTemplate {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  ChannelType type = 4;
+  ChannelMode default_mode = 5;
+  
+  // Template settings
+  int32 default_max_members = 6;
+  bool default_invite_only = 7;
+  map<string, string> default_settings = 8;
+  
+  // Permissions for template application
+  repeated string allowed_roles = 9;    // Who can use this template
+  bool is_system_template = 10;      // Built-in template
+  
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message GetChannelTemplateRequest {
+  oneof identifier {
+    string id = 1;
+    bool list_system_templates = 2;
+  }
+}
+
+message GetChannelTemplateResponse {
+  ChannelTemplate template = 1;
+  repeated ChannelTemplate templates = 2;
+}
+
+// Advanced channel settings
+message ChannelAdvancedSettings {
+  // Message settings
+  int32 message_rate_limit = 1;          // Messages per minute
+  int32 max_message_length = 2;
+  bool allow_bbcode = 3;
+  bool allow_markdown = 4;
+  bool allow_images = 5;
+  bool allow_links = 6;
+  
+  // Member settings
+  bool require_verification = 7;           // Require account verification to join
+  int32 minimum_account_age_days = 8;       // Minimum account age
+  repeated string blocked_characters = 9;         // Blocked characters list
+  
+  // Privacy settings
+  bool hide_from_channel_list = 10;
+  bool require_invite = 11;
+  bool allow_guest_viewing = 12;
+  
+  // Automated moderation
+  bool enable_auto_moderation = 13;
+  float spam_threshold = 14;              // Auto-kick for spam
+  bool filter_profanity = 15;
+  repeated string banned_words = 16;
+}
+
+message UpdateChannelSettingsRequest {
+  string channel_id = 1;
+  ChannelAdvancedSettings settings = 2;
+}
+
+message UpdateChannelSettingsResponse {
+  bool success = 1;
+  Channel channel = 2;        // Updated channel with new settings
+  string error = 3;
+}
+
+// Channel audit log
+message ChannelAuditLog {
+  string id = 1;
+  string channel_id = 2;
+  string actor_id = 3;
+  string target_id = 4;
+  ModerationAction action = 5;
+  string reason = 6;
+  int32 duration_minutes = 7;
+  
+  // Before/after states
+  ChannelRole old_role = 8;
+  ChannelRole new_role = 9;
+  map<string, string> old_settings = 10;
+  map<string, string> new_settings = 11;
+  
+  google.protobuf.Timestamp timestamp = 12;
+  string ip_address = 13;          // For security auditing
+}
+
+message GetChannelAuditLogRequest {
+  string channel_id = 1;
+  
+  // Filters
+  optional google.protobuf.Timestamp start_time = 2;
+  optional google.protobuf.Timestamp end_time = 3;
+  repeated ModerationAction action_filters = 4;
+  optional string character_filter = 5;
+  
+  // Pagination
+  int32 page_size = 6;
+  string page_token = 7;
+}
+
+message GetChannelAuditLogResponse {
+  repeated ChannelAuditLog entries = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Bulk operations for management
+message BulkOperationRequest {
+  string channel_id = 1;
+  repeated string target_character_ids = 2;
+  ModerationAction action = 3;
+  string reason = 4;
+  int32 duration_minutes = 5;
+}
+
+message BulkOperationResponse {
+  map<string, bool> results = 1;      // character_id -> success/failure
+  repeated ChannelMember failed_operations = 2;  // Members who couldn't be processed
+  string error = 3;
+}
+
+// Extended channel service with advanced operations
+service ChannelAdvancedService {
+  // Analytics and monitoring
+  rpc GetChannelStats(google.protobuf.StringValue) returns (ChannelStats);
+  rpc StreamChannelStats(google.protobuf.Empty) returns (stream ChannelStats);
+  
+  // Search and discovery
+  rpc SearchChannels(ChannelSearchRequest) returns (ChannelSearchResponse);
+  
+  // Bulk operations
+  rpc BulkChannelOperation(BulkOperationRequest) returns (BulkOperationResponse);
+  
+  // Templates and presets
+  rpc GetChannelTemplate(GetChannelTemplateRequest) returns (GetChannelTemplateResponse);
+  rpc CreateChannelFromTemplate(ChannelTemplate) returns (Channel);
+  
+  // Advanced settings
+  rpc GetChannelSettings(google.protobuf.StringValue) returns (ChannelAdvancedSettings);
+  rpc UpdateChannelSettings(UpdateChannelSettingsRequest) returns (Channel);
+  
+  // Audit and compliance
+  rpc GetChannelAuditLog(GetChannelAuditLogRequest) returns (GetChannelAuditLogResponse);
+}

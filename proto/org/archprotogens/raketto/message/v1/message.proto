@@ -1,0 +1,271 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.message.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "org/archprotogens/raketto/realtime/v1/events.proto";
+
+option go_package = "raketto/message/v1";
+
+// Message format types
+enum Format {
+  FORMAT_UNSPECIFIED = 0;
+  FORMAT_PLAIN_TEXT = 1;
+  FORMAT_BBCODE = 2;
+  FORMAT_MARKDOWN = 3;
+  FORMAT_HTML = 4;
+}
+
+// Delivery tracking information
+message DeliveryInfo {
+  string recipient_id = 1;
+  enum DeliveryStatus {
+    DELIVERY_STATUS_UNSPECIFIED = 0;
+    DELIVERY_STATUS_PENDING = 1;
+    DELIVERY_STATUS_DELIVERED = 2;
+    DELIVERY_STATUS_READ = 3;
+    DELIVERY_STATUS_FAILED = 4;
+  }
+  DeliveryStatus status = 2;
+  google.protobuf.Timestamp delivered_at = 3;
+  string failure_reason = 4;
+  int32 retry_count = 5;
+}
+
+// Legacy message types for backward compatibility
+enum MessageType {
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_OOC = 1;               // Out-of-character message
+  MESSAGE_TYPE_IC = 2;                // In-character message
+  MESSAGE_TYPE_EMOTE = 3;              // Action/emote message
+  MESSAGE_TYPE_AD = 4;                // Roleplay advertisement
+  MESSAGE_TYPE_SYSTEM = 5;               // System notification
+  MESSAGE_TYPE_RICH_TEXT = 6;           // Formatted message (BBCode, Markdown)
+}
+
+// Base message structure for compatibility
+message Message {
+  string id = 1;
+  string sender_id = 2;
+  MessageType type = 3;
+  string content = 4;
+  
+  oneof recipient {
+    string channel_id = 5;
+    string recipient_id = 6;
+  }
+  
+  // Threading and replies
+  optional string reply_to_message_id = 7;
+  optional string thread_id = 8;
+  int32 reply_count = 9;
+  
+  // Rich content support
+  repeated string attachments = 10;
+  map<string, string> metadata = 11;
+  
+  // Timestamps and lifecycle
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  google.protobuf.Timestamp deleted_at = 14;
+  
+  // Delivery and read status
+  bool delivered = 15;
+  bool read = 16;
+  google.protobuf.Timestamp read_at = 17;
+  
+   // Editing and versioning
+   int32 edit_count = 18;
+   bool edited = 19;
+   string edit_reason = 20;
+   
+   // Formatting information
+   Format format = 21;
+   string raw_content = 22;        // Original unprocessed content
+   string processed_content = 23;   // Processed content for display
+ }
+
+// Enhanced message for real-time features
+message EnhancedMessage {
+  // Base message fields
+  Message base_message = 1;
+  
+   // Real-time extensions
+   org.archprotogens.raketto.realtime.v1.RealtimeMessage realtime_message = 2;
+   
+   // Delivery tracking
+   repeated DeliveryInfo delivery_info = 3;
+   
+  // Message reactions
+  message Reaction {
+    string character_id = 1;
+    string reaction_type = 2;        // emoji, icon, text
+    string reaction_data = 3;
+    google.protobuf.Timestamp created_at = 4;
+  }
+  repeated Reaction reactions = 4;
+  
+  // Content processing
+  repeated string mentions = 5;         // @mentions in message
+  repeated string links = 6;            // Extracted URLs
+  repeated string tags = 7;             // Hashtags or custom tags
+  bool contains_spoilers = 8;
+  bool is_adult_content = 9;
+}
+
+// Message request for sending with real-time features
+message SendMessageRequest {
+  Message message = 1;
+  
+  // Delivery options
+  bool require_delivery_confirmation = 2;
+  int32 timeout_seconds = 3;
+  bool allow_forwarding = 4;
+  bool save_to_history = 5;
+  
+  // Formatting options
+  Format preferred_format = 6;
+  bool auto_process_mentions = 7;
+  bool auto_extract_links = 8;
+  
+  // Targeting options
+  repeated string allowed_characters = 9;     // For group messages
+  repeated string blocked_characters = 10;
+  bool ignore_blocks = 11;
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  string message_id = 2;
+  EnhancedMessage enhanced_message = 3;
+  repeated DeliveryInfo delivery_results = 4;
+  string error = 5;
+  int64 processing_time_ms = 6;
+}
+
+// Message history and search
+message GetMessageRequest {
+  oneof target {
+    string channel_id = 1;
+    string character_id = 2;           // DM history
+  }
+  
+  // Filtering options
+  optional google.protobuf.Timestamp start_time = 3;
+  optional google.protobuf.Timestamp end_time = 4;
+  repeated MessageType type_filters = 5;
+  optional string search_query = 6;
+  repeated string tag_filters = 7;
+  
+  // Pagination
+  int32 page_size = 8;
+  string page_token = 9;
+  
+  // Sorting
+  enum SortOrder {
+    SORT_ORDER_UNSPECIFIED = 0;
+    SORT_ORDER_OLDEST_FIRST = 1;
+    SORT_ORDER_NEWEST_FIRST = 2;
+  }
+  optional SortOrder sort_order = 10;
+}
+
+message GetMessageResponse {
+  repeated EnhancedMessage messages = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+  bool has_more = 4;
+  map<string, int32> unread_counts = 5;
+}
+
+// Message editing and deletion
+message EditMessageRequest {
+  string message_id = 1;
+  string character_id = 2;         // Editor (for permissions)
+  string new_content = 3;
+  string edit_reason = 4;
+  bool preserve_timestamp = 5;
+}
+
+message EditMessageResponse {
+  bool success = 1;
+  EnhancedMessage updated_message = 2;
+  string error = 3;
+  google.protobuf.Timestamp edited_at = 4;
+}
+
+message DeleteMessageRequest {
+  string message_id = 1;
+  string character_id = 2;         // Deleter (for permissions)
+  string reason = 3;
+  bool delete_for_everyone = 4;        // Server-side deletion
+}
+
+message DeleteMessageResponse {
+  bool success = 1;
+  Message deleted_message = 2;
+  string error = 3;
+  bool can_undo = 4;
+}
+
+// Wrapper messages for RPC parameters
+message GetMessageBatchRequest {
+  repeated GetMessageRequest requests = 1;
+}
+
+message DeleteMessageBatchRequest {
+  repeated DeleteMessageRequest requests = 1;
+}
+
+message MarkAsReadRequest {
+  string message_id = 1;
+}
+
+message AddReactionRequest {
+  string message_id = 1;
+  EnhancedMessage.Reaction reaction = 2;
+}
+
+message RemoveReactionRequest {
+  string message_id = 1;
+  EnhancedMessage.Reaction reaction = 2;
+}
+
+message SearchMessagesRequest {
+  string channel_id = 1;
+  string query = 2;
+  optional int32 limit = 3;
+  optional string page_token = 4;
+}
+
+message GetUnreadCountRequest {
+  string channel_id = 1;
+}
+
+message GetUnreadCountResponse {
+  int32 unread_count = 1;
+}
+
+// Enhanced message service
+service MessageService {
+  // Basic message operations
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  
+  // Batch operations
+  rpc GetMessagesBatch(GetMessageBatchRequest) returns (stream GetMessageResponse);
+  rpc DeleteMessagesBatch(DeleteMessageBatchRequest) returns (stream DeleteMessageResponse);
+  
+  // Message management
+  rpc MarkAsRead(MarkAsReadRequest) returns (google.protobuf.Empty);
+  rpc AddReaction(AddReactionRequest) returns (google.protobuf.Empty);
+  rpc RemoveReaction(RemoveReactionRequest) returns (google.protobuf.Empty);
+  rpc ForwardMessage(SendMessageRequest) returns (SendMessageResponse);
+  
+  // Search and filtering
+  rpc SearchMessages(SearchMessagesRequest) returns (stream GetMessageResponse);
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse);
+}

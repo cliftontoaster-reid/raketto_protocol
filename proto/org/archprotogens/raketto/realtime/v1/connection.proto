@@ -1,0 +1,266 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.realtime.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "org/archprotogens/raketto/character/v1/character.proto";
+import "org/archprotogens/raketto/character/v1/status.proto";
+import "org/archprotogens/raketto/realtime/v1/events.proto";
+
+option go_package = "raketto/realtime/v1";
+
+// WebSocket connection states
+enum ConnectionState {
+  CONNECTION_STATE_UNSPECIFIED = 0;
+  CONNECTION_STATE_CONNECTING = 1;
+  CONNECTION_STATE_CONNECTED = 2;
+  CONNECTION_STATE_AUTHENTICATED = 3;
+  CONNECTION_STATE_DISCONNECTING = 4;
+  CONNECTION_STATE_DISCONNECTED = 5;
+  CONNECTION_STATE_RECONNECTING = 6;
+  CONNECTION_STATE_ERROR = 7;
+}
+
+// Connection close reasons
+enum DisconnectReason {
+  DISCONNECT_REASON_UNSPECIFIED = 0;
+  DISCONNECT_REASON_NORMAL = 1;          // Graceful disconnect
+  DISCONNECT_REASON_TIMEOUT = 2;         // Connection timeout
+  DISCONNECT_REASON_ERROR = 3;           // Protocol error
+  DISCONNECT_REASON_KICKED = 4;          // Kicked by server
+  DISCONNECT_REASON_BANNED = 5;          // Banned by server
+  DISCONNECT_REASON_SERVER_SHUTDOWN = 6;  // Server going down
+  DISCONNECT_REASON_AUTH_FAILED = 7;      // Authentication failed
+  DISCONNECT_REASON_DUPLICATE = 8;        // Duplicate connection
+}
+
+// Initial connection handshake
+message ConnectRequest {
+  string protocol_version = 1;
+  string client_name = 2;
+  string client_version = 3;
+  map<string, string> client_capabilities = 4;
+  string auth_token = 5;
+}
+
+message ConnectResponse {
+  bool success = 1;
+  string session_id = 2;
+  string server_version = 3;
+  google.protobuf.Timestamp server_time = 4;
+  map<string, string> server_capabilities = 5;
+  repeated string required_commands = 6;
+  string error = 7;
+}
+
+// Character identification after connection
+message IdentifyRequest {
+  string character_id = 1;
+  string auth_token = 2;
+  map<string, string> client_info = 3;
+}
+
+message IdentifyResponse {
+  bool success = 1;
+  org.archprotogens.raketto.character.v1.Character character = 2;
+  repeated string active_channels = 3;
+  map<string, int32> unread_counts = 4;
+  string error = 5;
+}
+
+// Keep-alive messages for connection health
+message PingMessage {
+  string session_id = 1;
+  int64 timestamp = 2;
+  bytes payload = 3;           // Optional payload for debugging
+}
+
+message PongMessage {
+  int64 timestamp = 2;
+  bytes payload = 3;           // Echo back the ping payload
+}
+
+// Real-time presence updates
+message PresenceUpdate {
+  string character_id = 1;
+  org.archprotogens.raketto.character.v1.Status status = 2;
+  string status_message = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  
+  // Extended presence
+  bool is_typing = 5;
+  string current_channel_id = 6;
+  map<string, string> custom_status = 7;
+}
+
+// Typing indicators
+message TypingIndicator {
+  string character_id = 1;
+  string channel_id = 2;
+  enum TypingState {
+    TYPING_STATE_UNSPECIFIED = 0;
+    TYPING_STATE_START = 1;      // User started typing
+    TYPING_STATE_STOP = 2;       // User stopped typing
+    TYPING_STATE_CLEAR = 3;      // User cleared typing indicator
+  }
+  TypingState state = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// Server announcements and system messages
+message ServerAnnouncement {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+  enum Priority {
+    PRIORITY_UNSPECIFIED = 0;
+    PRIORITY_LOW = 1;
+    PRIORITY_NORMAL = 2;
+    PRIORITY_HIGH = 3;
+    PRIORITY_CRITICAL = 4;
+  }
+  Priority priority = 4;
+  
+  // Targeting
+  bool global = 5;                    // Send to all users
+  repeated string target_channels = 6;         // Send to specific channels
+  repeated string target_characters = 7;        // Send to specific users
+  
+  google.protobuf.Timestamp scheduled_for = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  string author_id = 10;
+}
+
+// Connection events for monitoring
+message ConnectionEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_CONNECTED = 1;
+    EVENT_TYPE_DISCONNECTED = 2;
+    EVENT_TYPE_AUTHENTICATED = 3;
+    EVENT_TYPE_ERROR = 4;
+    EVENT_TYPE_TIMEOUT = 5;
+  }
+  
+  EventType type = 1;
+  string character_id = 2;
+  string connection_id = 3;
+  string ip_address = 4;
+  string user_agent = 5;
+  
+  // Error details for error events
+  string error_code = 6;
+  string error_message = 7;
+  
+  google.protobuf.Timestamp timestamp = 8;
+}
+
+// Real-time metrics and telemetry
+message ConnectionMetrics {
+  string connection_id = 1;
+  int64 bytes_received = 2;
+  int64 bytes_sent = 3;
+  int32 messages_received = 4;
+  int32 messages_sent = 5;
+  
+  // Performance metrics
+  int32 latency_ms = 6;
+  float cpu_usage_percent = 7;
+  int64 memory_usage_bytes = 8;
+  
+  google.protobuf.Timestamp last_updated = 9;
+}
+
+// Unsubscribe request
+message UnsubscribeRequest {
+  string subscription_id = 1;
+}
+
+// Real-time event wrapper for streaming
+message RealtimeEvent {
+  string subscription_id = 1;
+  string event_id = 2;
+  string event_type = 3;
+  bytes event_data = 4;           // Serialized event message
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// WebSocket control messages
+message ControlMessage {
+  enum CommandType {
+    COMMAND_TYPE_UNSPECIFIED = 0;
+    COMMAND_TYPE_PING = 1;
+    COMMAND_TYPE_PONG = 2;
+    COMMAND_TYPE_RECONNECT = 3;
+    COMMAND_TYPE_DISCONNECT = 4;
+    COMMAND_TYPE_SUBSCRIBE = 5;
+    COMMAND_TYPE_UNSUBSCRIBE = 6;
+    COMMAND_TYPE_HEARTBEAT = 7;
+  }
+  
+  CommandType command = 1;
+  map<string, string> parameters = 2;
+  string request_id = 3;           // For request-response correlation
+}
+
+// Enhanced WebSocket message wrapper
+message WebSocketMessage {
+  string message_id = 1;
+  string session_id = 2;
+  string character_id = 3;
+  
+  oneof payload {
+    ConnectRequest connect_request = 4;
+    ConnectResponse connect_response = 5;
+    IdentifyRequest identify_request = 6;
+    IdentifyResponse identify_response = 7;
+    PingMessage ping = 8;
+    PongMessage pong = 9;
+    PresenceUpdate presence_update = 10;
+    TypingIndicator typing_indicator = 11;
+    ServerAnnouncement announcement = 12;
+    ConnectionEvent connection_event = 13;
+    ConnectionMetrics metrics = 14;
+    SubscribeRequest subscribe_request = 15;
+    SubscribeResponse subscribe_response = 16;
+    RealtimeEvent realtime_event = 17;
+    ControlMessage control_message = 18;
+  }
+  
+  google.protobuf.Timestamp timestamp = 20;
+  map<string, string> metadata = 21;
+}
+
+// Get connection metrics request
+message GetConnectionMetricsRequest {
+  string connection_id = 1;
+}
+
+// Real-time connection service
+service RealtimeService {
+  // Connection lifecycle
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  rpc Identify(IdentifyRequest) returns (IdentifyResponse);
+  rpc Disconnect(google.protobuf.Empty) returns (google.protobuf.Empty);
+  
+  // Keep-alive and health
+  rpc Ping(PingMessage) returns (PongMessage);
+  rpc Heartbeat(google.protobuf.Empty) returns (google.protobuf.Empty);
+  
+  // Real-time subscriptions and events
+  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+  rpc Unsubscribe(UnsubscribeRequest) returns (google.protobuf.Empty);
+  rpc StreamEvents(SubscribeRequest) returns (stream RealtimeEvent);
+  
+  // Presence and typing
+  rpc UpdatePresence(PresenceUpdate) returns (google.protobuf.Empty);
+  rpc SendTypingIndicator(TypingIndicator) returns (google.protobuf.Empty);
+  
+  // Server communications
+  rpc SendAnnouncement(ServerAnnouncement) returns (google.protobuf.Empty);
+  
+  // Metrics and monitoring
+  rpc GetConnectionMetrics(GetConnectionMetricsRequest) returns (ConnectionMetrics);
+  rpc StreamMetrics(google.protobuf.Empty) returns (stream ConnectionMetrics);
+}

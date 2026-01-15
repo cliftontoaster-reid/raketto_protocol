@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.user.v1;
+
+import "google/protobuf/timestamp.proto";
+import "org/archprotogens/raketto/security/v1/security.proto";
+
+option go_package = "raketto/user/v1";
+
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message UpdateEmailRequest {
+  string id = 1;
+  string new_email = 2;
+}
+
+message UpdateEmailResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+}
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (org.archprotogens.raketto.security.v1.EmailVerificationRequest);
+  rpc EndCreateUserWithEmailVerification(org.archprotogens.raketto.security.v1.EmailVerificationReply) returns (CreateUserResponse);
+
+  rpc UpdateEmail(UpdateEmailRequest) returns (org.archprotogens.raketto.security.v1.VerificationRequest);
+  rpc EndUpdateEmailWithVerification(org.archprotogens.raketto.security.v1.VerificationReply) returns (UpdateEmailResponse);
+
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}

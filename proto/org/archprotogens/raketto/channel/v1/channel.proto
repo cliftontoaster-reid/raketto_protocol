@@ -1,0 +1,294 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.channel.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "org/archprotogens/raketto/character/v1/character.proto";
+
+option go_package = "raketto/channel/v1";
+
+// Channel types for different use cases
+enum ChannelType {
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_TYPE_PUBLIC = 1;      // Publicly listed channels
+  CHANNEL_TYPE_PRIVATE = 2;     // Private invite-only channels
+  CHANNEL_TYPE_TEMPORARY = 3;   // Temporary channels that expire
+}
+
+// Channel modes for message filtering
+enum ChannelMode {
+  CHANNEL_MODE_UNSPECIFIED = 0;
+  CHANNEL_MODE_CHAT_ONLY = 1;    // Only chat messages allowed
+  CHANNEL_MODE_ADS_ONLY = 2;     // Only roleplay ads allowed
+  CHANNEL_MODE_BOTH = 3;          // Both chat and ads allowed
+}
+
+// Member roles within a channel
+enum ChannelRole {
+  CHANNEL_ROLE_UNSPECIFIED = 0;
+  CHANNEL_ROLE_GUEST = 1;       // Non-member with limited access
+  CHANNEL_ROLE_MEMBER = 2;      // Regular channel member
+  CHANNEL_ROLE_OP = 3;          // Channel operator with moderation powers
+  CHANNEL_ROLE_OWNER = 4;       // Channel owner with full control
+}
+
+// Channel moderation actions
+enum ModerationAction {
+  MODERATION_ACTION_UNSPECIFIED = 0;
+  MODERATION_ACTION_KICK = 1;        // Remove user from channel temporarily
+  MODERATION_ACTION_BAN = 2;         // Remove user from channel permanently
+  MODERATION_ACTION_TIMEOUT = 3;      // Remove user for specified duration
+  MODERATION_ACTION_SILENCE = 4;      // Prevent user from speaking
+  MODERATION_ACTION_INVITE = 5;       // Invite user to private channel
+  MODERATION_ACTION_UNINVITE = 6;     // Remove user from private channel
+  MODERATION_ACTION_PROMOTE_OP = 7;   // Promote user to operator
+  MODERATION_ACTION_DEMOTE_OP = 8;    // Demote operator to member
+  MODERATION_ACTION_TRANSFER_OWNERSHIP = 9; // Transfer channel ownership
+}
+
+// Core channel information
+message Channel {
+  string id = 1;
+  string name = 2;
+  string title = 3;
+  string description = 4;
+  ChannelType type = 5;
+  ChannelMode mode = 6;
+  string owner_id = 7;
+  repeated string operator_ids = 8;
+  
+  // Channel settings
+  int32 max_members = 10;
+  bool invite_only = 11;
+  bool password_protected = 12;
+  string password_hash = 13;
+  
+  // Metadata
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  
+  // Channel statistics
+  int32 member_count = 16;
+  int32 current_online = 17;
+  
+  // Optional advanced settings
+  map<string, string> custom_settings = 18;
+}
+
+// Channel membership information
+message ChannelMember {
+  string channel_id = 1;
+  string character_id = 2;
+  ChannelRole role = 3;
+  google.protobuf.Timestamp joined_at = 4;
+  google.protobuf.Timestamp last_active = 5;
+  
+  // Member-specific permissions
+  bool can_speak = 6;
+  bool can_post_ads = 7;
+  bool can_invite = 8;
+  bool can_kick = 9;
+  bool can_ban = 10;
+  
+  // Presence information
+  bool is_online = 11;
+  string status_message = 12;
+}
+
+// Channel event notifications
+message ChannelEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_CREATED = 1;       // Channel was created
+    EVENT_TYPE_UPDATED = 2;       // Channel settings were updated
+    EVENT_TYPE_DELETED = 3;       // Channel was deleted
+    EVENT_TYPE_JOINED = 4;        // User joined channel
+    EVENT_TYPE_LEFT = 5;         // User left channel
+    EVENT_TYPE_KICKED = 6;        // User was kicked from channel
+    EVENT_TYPE_BANNED = 7;        // User was banned from channel
+    EVENT_TYPE_INVITED = 8;      // User was invited to channel
+    EVENT_TYPE_PROMOTED = 9;     // User was promoted to operator
+    EVENT_TYPE_DEMOTED = 10;      // User was demoted from operator
+  }
+  
+  EventType type = 1;
+  string channel_id = 2;
+  string character_id = 3;
+  string actor_id = 4;          // Who performed the action
+  
+  // Event details
+  string reason = 5;
+  int32 duration_minutes = 6;    // For timeouts/bans
+  ChannelRole old_role = 7;
+  ChannelRole new_role = 8;
+  
+  google.protobuf.Timestamp timestamp = 9;
+}
+
+// Request messages for channel operations
+message CreateChannelRequest {
+  string name = 1;
+  string title = 2;
+  string description = 3;
+  ChannelType type = 4;
+  ChannelMode mode = 5;
+  int32 max_members = 6;
+  bool invite_only = 7;
+  string password = 8;
+  map<string, string> custom_settings = 9;
+}
+
+message CreateChannelResponse {
+  oneof result {
+    Channel channel = 1;
+    string error = 2;
+  }
+}
+
+message GetChannelRequest {
+  oneof identifier {
+    string id = 1;              // Get by channel ID
+    string name = 2;            // Get by channel name (public channels only)
+  }
+}
+
+message GetChannelResponse {
+  oneof result {
+    Channel channel = 1;
+    string error = 2;
+  }
+}
+
+message ListChannelsRequest {
+  // Filter options
+  ChannelType type_filter = 1;
+  string owner_id_filter = 2;
+  bool include_member_count = 3;
+  bool include_online_count = 4;
+  
+  // Pagination
+  int32 page_size = 5;
+  string page_token = 6;
+}
+
+message ListChannelsResponse {
+  repeated Channel channels = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message UpdateChannelRequest {
+  string id = 1;
+  
+  // Updatable fields
+  optional string title = 2;
+  optional string description = 3;
+  optional ChannelMode mode = 4;
+  optional int32 max_members = 5;
+  optional bool invite_only = 6;
+  optional string password = 7;
+  map<string, string> custom_settings = 8;
+}
+
+message UpdateChannelResponse {
+  oneof result {
+    Channel channel = 1;
+    string error = 2;
+  }
+}
+
+message DeleteChannelRequest {
+  string id = 1;
+}
+
+message DeleteChannelResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Channel membership management
+message JoinChannelRequest {
+  string channel_id = 1;
+  string password = 2;         // Optional password for protected channels
+}
+
+message JoinChannelResponse {
+  oneof result {
+    ChannelMember member = 1;
+    Channel channel_info = 2;     // Full channel info for new members
+    string error = 3;
+  }
+}
+
+message LeaveChannelRequest {
+  string channel_id = 1;
+}
+
+message LeaveChannelResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Moderation requests
+message ModerationRequest {
+  string channel_id = 1;
+  string target_character_id = 2;
+  ModerationAction action = 3;
+  string reason = 4;
+  int32 duration_minutes = 5;     // For timeouts/bans
+}
+
+message ModerationResponse {
+  bool success = 1;
+  ChannelEvent event = 2;        // The moderation event that occurred
+  string error = 3;
+}
+
+// Channel member management
+message InviteToChannelRequest {
+  string channel_id = 1;
+  string character_id = 2;
+}
+
+message InviteToChannelResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GetChannelMembersRequest {
+  string channel_id = 1;
+  bool include_offline = 2;
+  
+  // Pagination
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message GetChannelMembersResponse {
+  repeated ChannelMember members = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Channel service definition
+service ChannelService {
+  // Channel CRUD operations
+  rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse);
+  rpc GetChannel(GetChannelRequest) returns (GetChannelResponse);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc UpdateChannel(UpdateChannelRequest) returns (UpdateChannelResponse);
+  rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse);
+  
+  // Channel membership
+  rpc JoinChannel(JoinChannelRequest) returns (JoinChannelResponse);
+  rpc LeaveChannel(LeaveChannelRequest) returns (LeaveChannelResponse);
+  rpc InviteToChannel(InviteToChannelRequest) returns (InviteToChannelResponse);
+  rpc GetChannelMembers(GetChannelMembersRequest) returns (GetChannelMembersResponse);
+  
+  // Moderation operations
+  rpc ModerateChannel(ModerationRequest) returns (ModerationResponse);
+  
+  // Real-time events (streaming)
+  rpc StreamChannelEvents(google.protobuf.Empty) returns (stream ChannelEvent);
+}

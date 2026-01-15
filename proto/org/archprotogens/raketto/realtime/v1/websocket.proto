@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.realtime.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "org/archprotogens/raketto/realtime/v1/connection.proto";
+
+option go_package = "raketto/realtime/v1";
+
+// WebSocket protocol wrapper for all messages
+message WebSocketFrame {
+  string id = 1;                    // Unique frame identifier
+  string session_id = 2;              // Session for correlation
+  string character_id = 3;              // Sending character
+  
+  enum FrameType {
+    FRAME_TYPE_UNSPECIFIED = 0;
+    FRAME_TYPE_CONNECT = 1;
+    FRAME_TYPE_CONNECT_RESPONSE = 2;
+    FRAME_TYPE_IDENTIFY = 3;
+    FRAME_TYPE_IDENTIFY_RESPONSE = 4;
+    FRAME_TYPE_MESSAGE = 5;
+    FRAME_TYPE_MESSAGE_RESPONSE = 6;
+    FRAME_TYPE_CHANNEL_EVENT = 7;
+    FRAME_TYPE_PRESENCE_EVENT = 8;
+    FRAME_TYPE_TYPING_EVENT = 9;
+    FRAME_TYPE_ANNOUNCEMENT = 10;
+    FRAME_TYPE_PING = 11;
+    FRAME_TYPE_PONG = 12;
+    FRAME_TYPE_CONTROL = 13;
+    FRAME_TYPE_ERROR = 14;
+    FRAME_TYPE_HEARTBEAT = 15;
+  }
+  FrameType frame_type = 4;
+  
+  // Message payload (varies by frame_type)
+  bytes payload = 5;
+  
+  // Protocol metadata
+  int32 protocol_version = 6;
+  int32 sequence_number = 7;         // For ordering and reliability
+  bool require_ack = 8;              // Request acknowledgment
+  bool compressed = 9;                // Payload compression flag
+  int32 payload_size = 10;           // Size of uncompressed payload
+  
+  google.protobuf.Timestamp timestamp = 11;
+  map<string, string> metadata = 12;   // Frame metadata
+}
+
+// WebSocket error handling
+message WebSocketError {
+  enum ErrorCode {
+    ERROR_CODE_UNSPECIFIED = 0;
+    ERROR_CODE_INVALID_FRAME = 1;          // Malformed frame
+    ERROR_CODE_UNKNOWN_COMMAND = 2;       // Unsupported frame type
+    ERROR_CODE_MISSING_FIELD = 3;          // Required field missing
+    ERROR_CODE_INVALID_FIELD = 4;          // Field validation failed
+    ERROR_CODE_UNAUTHORIZED = 5;           // Authentication/authorization failed
+    ERROR_CODE_FORBIDDEN = 6;             // Permission denied
+    ERROR_CODE_NOT_FOUND = 7;              // Resource not found
+    ERROR_CODE_RATE_LIMITED = 8;          // Too many requests
+    ERROR_CODE_SERVER_ERROR = 9;           // Internal server error
+    ERROR_CODE_TIMEOUT = 10;               // Operation timeout
+    ERROR_CODE_DISCONNECTED = 11;            // Client disconnected
+    ERROR_CODE_PROTOCOL_VERSION = 12;       // Protocol version mismatch
+  }
+  
+  ErrorCode code = 1;
+  string message = 2;
+  string details = 3;             // Additional error context
+  string request_id = 4;         // Correlated request ID
+  
+  // Retry information
+  bool retry_allowed = 5;
+  int32 retry_after_seconds = 6;
+  string retry_reason = 7;
+  
+  google.protobuf.Timestamp timestamp = 8;
+}
+
+// Connection state machine
+message ConnectionStateUpdate {
+  string connection_id = 1;
+  ConnectionState old_state = 2;
+  ConnectionState new_state = 3;
+  DisconnectReason reason = 4;
+  string details = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+// WebSocket negotiation and configuration
+message WebSocketConfig {
+  // Protocol settings
+  int32 max_frame_size = 1;          // Maximum frame size in bytes
+  int32 max_message_rate = 2;          // Messages per second per connection
+  int32 heartbeat_interval_seconds = 3;   // Keep-alive interval
+  int32 connection_timeout_seconds = 4;     // Idle timeout
+  
+  // Compression settings
+  bool compression_enabled = 5;
+  repeated string compression_algorithms = 6;
+  int32 compression_threshold = 7;        // Minimum size to compress
+  
+  // Security settings
+  bool tls_required = 8;
+  repeated string allowed_origins = 9;
+  string auth_method = 10;            // Token, certificate, etc.
+  
+  // Performance settings
+  int32 buffer_size = 11;             // Send/receive buffer size
+  bool nagles_algorithm = 12;           // TCP optimization
+  int32 keepalive_interval_seconds = 13;
+}
+
+// Connection capabilities negotiation
+message CapabilitiesExchange {
+  repeated string client_capabilities = 1;
+  repeated string server_capabilities = 2;
+  repeated string unsupported_features = 3;
+  
+  // Feature flags
+  bool supports_compression = 4;
+  bool supports_encryption = 5;
+  bool supports_streaming = 6;
+  bool supports_multiplexing = 7;
+  
+  // Version information
+  string min_client_version = 8;
+  string recommended_client_version = 9;
+   repeated string deprecated_features = 10;
+}
+
+// Get connection state request
+message GetConnectionStateRequest {
+  string connection_id = 1;
+}
+
+// WebSocket protocol service
+service WebSocketProtocolService {
+  // Connection lifecycle
+  rpc NegotiateConnection(WebSocketConfig) returns (CapabilitiesExchange);
+  rpc EstablishConnection(ConnectRequest) returns (stream WebSocketFrame);
+  rpc CloseConnection(google.protobuf.Empty) returns (google.protobuf.Empty);
+  
+  // Frame handling
+  rpc SendFrame(WebSocketFrame) returns (google.protobuf.Empty);
+  rpc StreamFrames(google.protobuf.Empty) returns (stream WebSocketFrame);
+  
+  // Error handling
+  rpc ReportError(WebSocketError) returns (google.protobuf.Empty);
+  rpc StreamErrors(google.protobuf.Empty) returns (stream WebSocketError);
+  
+  // State monitoring
+  rpc GetConnectionState(GetConnectionStateRequest) returns (ConnectionStateUpdate);
+  rpc StreamStateUpdates(google.protobuf.Empty) returns (stream ConnectionStateUpdate);
+  
+  // Configuration and capabilities
+  rpc GetWebSocketConfig(google.protobuf.Empty) returns (WebSocketConfig);
+  rpc UpdateWebSocketConfig(WebSocketConfig) returns (google.protobuf.Empty);
+}

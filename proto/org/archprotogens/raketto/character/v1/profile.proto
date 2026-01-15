@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.character.v1;
+
+import "org/archprotogens/raketto/utils/v1/numstr.proto";
+
+option go_package = "raketto/character/v1";
+
+message Gender {
+  enum KnownGender {
+    FEMALE = 0;
+    MALE = 1;
+    NON_BINARY = 2;
+    TRANS_FEMALE = 3;
+    TRANS_MALE = 4;
+    GENDERFLUID = 5;
+
+    ANDROMORPH = 6;
+    GYNOMORPH = 7;
+  }
+
+  oneof gender {
+    KnownGender known = 1;
+    string other = 2;
+  }
+  optional string pronouns = 3;
+}
+
+enum RelationshipStatus {
+  RELATIONSHIP_STATUS_UNSPECIFIED = 0;
+  SINGLE = 1;
+  SINGLE_LOOKING = 2;
+  SINGLE_NOT_LOOKING = 3;
+  IN_A_RELATIONSHIP = 4;
+  IN_OPEN_RELATIONSHIP = 5;
+  OTHER = 6;
+}
+
+message BodyMods {
+  enum BodyModType {
+    TATTOO = 0;
+    PIERCING = 1;
+    SCARIFICATION = 2;
+    IMPLANT = 3;
+    OTHER = 4;
+  }
+  repeated BodyModType mods = 1;
+}
+
+message Kink {
+  message CustomKink {
+    string name = 1;
+    optional string description = 2;
+  }
+
+  oneof kink {
+    uint32 known = 1;
+    CustomKink custom = 2;
+  }
+}
+
+message Profile {
+  string id = 1;
+  string character_id = 2;
+
+  Gender gender = 3;
+  string species = 4;
+  org.archprotogens.raketto.utils.v1.UnitedValue height = 5;
+  org.archprotogens.raketto.utils.v1.UnitedValue weight = 6;
+  uint32 age = 7;
+  uint32 apparent_age = 9;
+  BodyMods body_mods = 10;
+  map<string, Kink> kinks = 11;
+
+  RelationshipStatus relationship_status = 12;
+}

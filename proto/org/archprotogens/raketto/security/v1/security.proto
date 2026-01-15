@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.security.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "raketto/security/v1";
+
+// Sent by the server to the client if needed.
+message EmailVerificationRequest {
+  string id = 1;
+  string censored_email = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+// Sent by the client to the server to attempt verification.
+message EmailVerificationReply {
+  string id = 1;
+  string code = 2;
+}
+
+message MultiFactorAuthSetup {
+  string secret = 1;
+  string qr_code_url = 2;
+}
+
+// Sent by the server to the client if needed.
+message MultiFactorAuthRequest {
+  string id = 1;
+}
+
+// Sent by the client to the server to attempt verification.
+message MultiFactorAuthReply {
+  string id = 1;
+  string code = 2;
+}
+
+message VerificationRequest {
+  oneof request {
+    EmailVerificationRequest email_verification_request = 1;
+    MultiFactorAuthRequest mfa_request = 2;
+  }
+}
+
+message VerificationReply {
+  oneof reply {
+    EmailVerificationReply email_verification_reply = 1;
+    MultiFactorAuthReply mfa_reply = 2;
+  }
+}

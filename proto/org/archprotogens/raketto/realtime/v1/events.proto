@@ -1,0 +1,364 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.realtime.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "org/archprotogens/raketto/channel/v1/channel.proto";
+import "org/archprotogens/raketto/character/v1/status.proto";
+
+option go_package = "raketto/realtime/v1";
+
+// Real-time message types extending the base message system
+enum RealtimeMessageType {
+  REALTIME_MESSAGE_TYPE_UNSPECIFIED = 0;
+  REALTIME_MESSAGE_TYPE_TEXT = 1;              // Standard text messages
+  REALTIME_MESSAGE_TYPE_EMOTE = 2;             // Action/emote messages  
+  REALTIME_MESSAGE_TYPE_AD = 3;                 // Roleplay advertisements
+  REALTIME_MESSAGE_TYPE_OOC = 4;                // Out-of-character messages
+  REALTIME_MESSAGE_TYPE_SYSTEM = 5;               // System notifications
+  REALTIME_MESSAGE_TYPE_RICH_TEXT = 6;           // Formatted messages (BBCode, Markdown)
+  REALTIME_MESSAGE_TYPE_IMAGE = 7;                // Image messages
+  REALTIME_MESSAGE_TYPE_AUDIO = 8;                // Audio messages/voice clips
+  REALTIME_MESSAGE_TYPE_FILE = 9;                 // File attachments
+  REALTIME_MESSAGE_TYPE_DICE_ROLL = 10;          // Dice roll results
+  REALTIME_MESSAGE_TYPE_STATUS_UPDATE = 11;        // Status changes
+  REALTIME_MESSAGE_TYPE_TYPING = 12;            // Typing indicators
+  REALTIME_MESSAGE_TYPE_CONNECTION = 13;            // Connection events
+  REALTIME_MESSAGE_TYPE_DISCONNECTION = 14;         // Disconnection events
+  REALTIME_MESSAGE_TYPE_ERROR = 15;              // Error messages
+}
+
+// Enhanced real-time message
+message RealtimeMessage {
+  string id = 1;
+  string sender_id = 2;
+  RealtimeMessageType message_type = 3;
+  
+  oneof recipient {
+    string channel_id = 4;
+    string recipient_id = 5;
+  }
+  
+  // Multi-recipient messages (for broadcast/group messages)
+  repeated string broadcast_recipient_ids = 6;
+  
+  // Message content and formatting
+  string content = 7;
+  string formatted_content = 8;        // Processed BBCode/Markdown
+  repeated string attachments = 9;
+  
+  // threading and replies
+  optional string reply_to_message_id = 10;
+  optional string thread_id = 11;
+  int32 reply_count = 12;
+  
+  // Message metadata
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  int32 edit_count = 15;
+  bool edited = 16;
+  bool deleted = 17;
+  
+  // Delivery tracking
+  bool delivered = 18;
+  bool read = 19;
+  google.protobuf.Timestamp read_at = 20;
+  
+  // Rich content support
+  message ImageAttachment {
+    string url = 1;
+    string thumbnail_url = 2;
+    string filename = 3;
+    int32 size_bytes = 4;
+    string mime_type = 5;
+    int32 width = 6;
+    int32 height = 7;
+    string description = 8;
+  }
+  
+  message FileAttachment {
+    string url = 1;
+    string filename = 2;
+    int32 size_bytes = 3;
+    string mime_type = 4;
+    string description = 5;
+    string download_url = 6;
+  }
+  
+  message RichContent {
+    enum Format {
+      FORMAT_UNSPECIFIED = 0;
+      FORMAT_BBCODE = 1;
+      FORMAT_MARKDOWN = 2;
+      FORMAT_HTML = 3;
+      FORMAT_PLAIN_TEXT = 4;
+    }
+    Format format = 1;
+    string raw_content = 2;
+    map<string, string> metadata = 3;
+  }
+  
+  oneof rich_data {
+    ImageAttachment image = 21;
+    FileAttachment file = 22;
+    RichContent rich_text = 23;
+  }
+}
+
+// Message acknowledgment and delivery
+message MessageAcknowledgment {
+  string message_id = 1;
+  string recipient_id = 2;
+  enum AckStatus {
+    ACK_STATUS_UNSPECIFIED = 0;
+    ACK_STATUS_DELIVERED = 1;
+    ACK_STATUS_READ = 2;
+    ACK_STATUS_FAILED = 3;
+    ACK_STATUS_REJECTED = 4;
+  }
+  AckStatus status = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  string error_reason = 5;
+}
+
+// Message status updates
+message MessageStatusUpdate {
+  string message_id = 1;
+  string character_id = 2;
+  enum StatusType {
+    STATUS_TYPE_UNSPECIFIED = 0;
+    STATUS_TYPE_DELIVERED = 1;
+    STATUS_TYPE_READ = 2;
+    STATUS_TYPE_EDITED = 3;
+    STATUS_TYPE_DELETED = 4;
+    STATUS_TYPE_FAILED = 5;
+  }
+  StatusType status = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  map<string, string> metadata = 5;
+}
+
+// Typing notifications
+message TypingNotification {
+  string character_id = 1;
+  string channel_id = 2;
+  enum TypingState {
+    TYPING_STATE_UNSPECIFIED = 0;
+    TYPING_STATE_START = 1;
+    TYPING_STATE_STOP = 2;
+    TYPING_STATE_CLEAR = 3;
+  }
+  TypingState state = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  int32 timeout_seconds = 5;        // Auto-clear timeout
+}
+
+// Real-time channel events
+message RealtimeChannelEvent {
+  string channel_id = 1;
+  string character_id = 2;
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_USER_JOINED = 1;
+    EVENT_TYPE_USER_LEFT = 2;
+    EVENT_TYPE_USER_KICKED = 3;
+    EVENT_TYPE_USER_BANNED = 4;
+    EVENT_TYPE_USER_TIMEDOUT = 5;
+    EVENT_TYPE_USER_INVITED = 6;
+    EVENT_TYPE_USER_PROMOTED = 7;
+    EVENT_TYPE_USER_DEMOTED = 8;
+    EVENT_TYPE_MODE_CHANGED = 9;
+    EVENT_TYPE_SETTINGS_CHANGED = 10;
+    EVENT_TYPE_MESSAGE_DELETED = 11;
+    EVENT_TYPE_TOPIC_CHANGED = 12;
+  }
+  EventType event_type = 3;
+  
+  // Event details
+  string actor_id = 4;          // Who performed the action
+  string target_id = 5;          // Who the action was performed on
+  string reason = 6;
+  int32 duration_minutes = 7;
+  
+  // Before/after states
+  org.archprotogens.raketto.channel.v1.ChannelRole old_role = 8;
+  org.archprotogens.raketto.channel.v1.ChannelRole new_role = 9;
+  map<string, string> old_settings = 10;
+  map<string, string> new_settings = 11;
+  
+  google.protobuf.Timestamp timestamp = 12;
+}
+
+// Presence and status updates
+message RealtimePresenceEvent {
+  string character_id = 1;
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_STATUS_CHANGED = 1;
+    EVENT_TYPE_ONLINE = 2;
+    EVENT_TYPE_OFFLINE = 3;
+    EVENT_TYPE_AWAY = 4;
+    EVENT_TYPE_BUSY = 5;
+    EVENT_TYPE_DND = 6;
+    EVENT_TYPE_CHARACTER_UPDATED = 7;
+  }
+  EventType event_type = 2;
+  
+  // Status information
+  org.archprotogens.raketto.character.v1.Status old_status = 3;
+  org.archprotogens.raketto.character.v1.Status new_status = 4;
+  string old_status_message = 5;
+  string new_status_message = 6;
+  
+  google.protobuf.Timestamp timestamp = 7;
+  repeated string affected_channels = 8;        // Channels to broadcast this presence update to
+}
+
+// Dice rolling for roleplay
+message DiceRoll {
+  string roll_id = 1;
+  string character_id = 2;
+  string channel_id = 3;
+  
+  // Dice configuration
+  message DiceConfig {
+    int32 sides = 1;
+    int32 count = 2;
+    int32 modifier = 3;
+    string description = 4;
+    bool explode_on = 5;           // Exploding dice
+    int32 explode_threshold = 6;     // Value to explode on
+  }
+  DiceConfig config = 4;
+  
+  // Results
+  repeated int32 individual_rolls = 5;
+  int32 total = 6;
+  bool critical_success = 7;
+  bool critical_failure = 8;
+  string result_text = 9;
+  
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+// Request and response messages for real-time operations
+message SendRealtimeMessageRequest {
+  RealtimeMessage message = 1;
+  bool require_ack = 2;             // Request delivery acknowledgment
+  int32 timeout_seconds = 3;           // Message delivery timeout
+}
+
+message SendRealtimeMessageResponse {
+  string message_id = 1;
+  bool success = 2;
+  string error = 3;
+  int64 delivery_time_ms = 4;       // Server processing time
+}
+
+message GetMessageHistoryRequest {
+  oneof target {
+    string channel_id = 1;
+    string character_id = 2;             // DM history
+  }
+  
+  // Filtering
+  optional google.protobuf.Timestamp start_time = 3;
+  optional google.protobuf.Timestamp end_time = 4;
+  repeated RealtimeMessageType message_type_filters = 5;
+  optional string search_query = 6;
+  
+  // Pagination
+  int32 page_size = 7;
+  string page_token = 8;
+  
+  // Sorting
+  enum SortOrder {
+    SORT_ORDER_UNSPECIFIED = 0;
+    SORT_ORDER_OLDEST_FIRST = 1;
+    SORT_ORDER_NEWEST_FIRST = 2;
+  }
+  optional SortOrder sort_order = 9;
+}
+
+message GetMessageHistoryResponse {
+  repeated RealtimeMessage messages = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+  bool has_more = 4;
+}
+
+message DeleteMessageRequest {
+  string message_id = 1;
+  string character_id = 2;         // Deleter (for permissions)
+  string reason = 3;
+}
+
+message DeleteMessageResponse {
+  bool success = 1;
+  string error = 2;
+  RealtimeMessage deleted_message = 3;   // The message that was deleted
+}
+
+message EditMessageRequest {
+  string message_id = 1;
+  string character_id = 2;         // Editor (for permissions)
+  string new_content = 3;
+  string edit_reason = 4;
+}
+
+message EditMessageResponse {
+  bool success = 1;
+  string error = 2;
+  RealtimeMessage updated_message = 3;   // The message after editing
+}
+
+// Subscribe request for streaming operations
+message SubscribeRequest {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_MESSAGES = 1;
+    EVENT_TYPE_CHANNEL_EVENTS = 2;
+    EVENT_TYPE_PRESENCE = 3;
+  }
+  
+  repeated EventType event_types = 1;
+  optional string channel_filter = 2;
+  optional string character_filter = 3;
+}
+
+message SubscribeResponse {
+  bool success = 1;
+  string subscription_id = 2;
+  repeated string active_subscriptions = 3;
+  string error = 4;
+}
+
+// Wrapper for DiceConfig request
+message RollDiceRequest {
+  DiceRoll.DiceConfig config = 1;
+  string character_id = 2;
+  string channel_id = 3;
+}
+
+// Real-time messaging service
+service RealtimeMessageService {
+  // Message operations
+  rpc SendRealtimeMessage(SendRealtimeMessageRequest) returns (SendRealtimeMessageResponse);
+  rpc GetMessageHistory(GetMessageHistoryRequest) returns (GetMessageHistoryResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
+  
+  // Message status and acknowledgments
+  rpc AcknowledgeMessage(MessageAcknowledgment) returns (google.protobuf.Empty);
+  rpc UpdateMessageStatus(MessageStatusUpdate) returns (google.protobuf.Empty);
+  
+  // Real-time events (streaming)
+  rpc StreamRealtimeMessages(SubscribeRequest) returns (stream RealtimeMessage);
+  rpc StreamChannelEvents(SubscribeRequest) returns (stream RealtimeChannelEvent);
+  rpc StreamPresenceEvents(SubscribeRequest) returns (stream RealtimePresenceEvent);
+  
+  // Interactive features
+  rpc SendTypingNotification(TypingNotification) returns (google.protobuf.Empty);
+  rpc RollDice(RollDiceRequest) returns (DiceRoll);
+}

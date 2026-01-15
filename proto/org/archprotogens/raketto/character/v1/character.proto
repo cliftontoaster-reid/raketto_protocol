@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.character.v1;
+
+import "google/protobuf/timestamp.proto";
+import "org/archprotogens/raketto/character/v1/profile.proto";
+import "org/archprotogens/raketto/character/v1/status.proto";
+
+option go_package = "raketto/character/v1";
+
+message Character {
+  string id = 1;
+  string user_id = 2;
+
+  string name = 3;
+  string description = 4;
+  reserved 5; // Future attachment for avatar image
+  reserved 6; // Future attachment for multiple images of the character
+  org.archprotogens.raketto.character.v1.Status status = 7;
+  optional org.archprotogens.raketto.character.v1.Profile profile = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message GetCharacterRequest {
+  string id = 1;
+}
+
+message ListCharactersRequest {
+  string user_id = 1;
+}
+
+message ListCharactersResponse {
+  repeated Character characters = 1;
+}
+
+message CreateCharacterRequest {
+  string name = 1;
+}
+
+message UpdateCharacterRequest {
+  string id = 1;
+
+  string name = 2;
+  string description = 3;
+  reserved 4; // Future attachment for avatar image
+  reserved 5; // Future attachment for multiple images of the character
+  org.archprotogens.raketto.character.v1.Status status = 6;
+  optional org.archprotogens.raketto.character.v1.Profile profile = 7;
+}
+
+service CharacterService {
+  rpc GetCharacter(GetCharacterRequest) returns (Character);
+  rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
+  rpc CreateCharacter(CreateCharacterRequest) returns (Character);
+  rpc UpdateCharacter(UpdateCharacterRequest) returns (Character);
+}

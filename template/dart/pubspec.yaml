@@ -1,0 +1,18 @@
+name: raketto_protocol
+description: Raketto protocol Dart bindings
+version: 0.1.0
+homepage: https://github.com/archprotogens/raketto
+repository: https://github.com/archprotogens/raketto.git
+issue_tracker: https://github.com/archprotogens/raketto/issues
+license: LGPL-3.0-or-later
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  protobuf: ^3.0.0
+  grpc: ^3.1.0
+  async: ^2.11.0
+
+dev_dependencies:
+  test: ^1.24.0

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package org.archprotogens.raketto.character.v1;
+
+option go_package = "raketto/character/v1";
+
+message Status {
+  enum StatusType {
+    UNKNOWN = 0;
+    OFFLINE = 1;
+    ONLINE = 2;
+    AWAY = 3;
+    BUSY = 4;
+    DO_NOT_DISTURB = 5;
+  }
+
+  string character_id = 1;
+  StatusType status = 2;
+  optional string message = 3;
+}

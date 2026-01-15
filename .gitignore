@@ -1,0 +1,9 @@
+generated/
+
+# VsCode
+.vscode/
+*.code-workspace
+# IntelliJ
+.idea/
+*.iml
+out/
